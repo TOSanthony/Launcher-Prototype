@@ -2,7 +2,7 @@ name: Build PS5 diagnostic ELF
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   workflow_dispatch:
 
 permissions:
@@ -41,11 +41,23 @@ jobs:
           make clean all
           test -s build/ppsa01289-diagnostic.elf
           file build/ppsa01289-diagnostic.elf
+          sha256sum build/ppsa01289-diagnostic.elf > build/SHA256SUMS.txt
+          {
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "commit=${GITHUB_SHA}"
+            echo "ref=${GITHUB_REF}"
+            echo "runner=${RUNNER_OS}"
+            echo "clang=$(clang --version | head -n 1)"
+            echo "built_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > build/build-info.txt
 
-      - name: Upload ELF artifact
+      - name: Upload ELF and build metadata
         uses: actions/upload-artifact@v4
         with:
           name: ppsa01289-diagnostic-elf
-          path: build/ppsa01289-diagnostic.elf
+          path: |
+            build/ppsa01289-diagnostic.elf
+            build/SHA256SUMS.txt
+            build/build-info.txt
           if-no-files-found: error
           retention-days: 14
