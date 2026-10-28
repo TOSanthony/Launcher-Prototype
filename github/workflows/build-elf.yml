@@ -1,0 +1,51 @@
+name: Build PS5 diagnostic ELF
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Install SDK build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bash build-essential clang-18 lld-18 wget cmake meson pkg-config python3 python3-pyelftools git
+
+      - name: Checkout PS5 payload SDK
+        uses: actions/checkout@v4
+        with:
+          repository: ps5-payload-dev/sdk
+          path: .deps/ps5-payload-sdk-source
+
+      - name: Build and install SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C .deps/ps5-payload-sdk-source
+          sudo make -C .deps/ps5-payload-sdk-source DESTDIR=/opt/ps5-payload-sdk install
+          echo 'PS5_PAYLOAD_SDK=/opt/ps5-payload-sdk' >> "$GITHUB_ENV"
+
+      - name: Build diagnostic ELF
+        shell: bash
+        run: |
+          set -euo pipefail
+          make clean all
+          test -s build/ppsa01289-diagnostic.elf
+          file build/ppsa01289-diagnostic.elf
+
+      - name: Upload ELF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ppsa01289-diagnostic-elf
+          path: build/ppsa01289-diagnostic.elf
+          if-no-files-found: error
+          retention-days: 14
